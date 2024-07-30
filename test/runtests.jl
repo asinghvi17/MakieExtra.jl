@@ -61,18 +61,26 @@ using TestItemRunner
     Makie.ReversibleScale(AsinhScale(1))
 
     bmt = BaseMulTicks([1,2,5])
-    @test Makie.get_tickvalues(bmt, identity, 0.25, 100) == [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, identity, 3, 100) == [5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, log10, 3, 100) == [5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, SymLog(1), 0, 100) == [0, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, SymLog(1), -10, 100) == [-10.0, -5.0, -2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, SymLog(1), 3, 100) == [5.0, 10.0, 20.0, 50.0, 100.0]
-    @test Makie.get_tickvalues(bmt, SymLog(1), 0, 1) == [0, 0.5, 1.0]
+    @test Makie.get_tickvalues(bmt, identity, 0.25, 100) == [0.5, 1, 2, 5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, identity, 3, 100) == [5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, log10, 3, 100) == [5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, SymLog(1), 0, 100) == [0, 0.5, 1, 2, 5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, SymLog(1), -10, 100) == [-10, -5, -2, -1, -0.5, 0, 0.5, 1, 2, 5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, SymLog(1), 3, 100) == [5, 10, 20, 50, 100]
+    @test Makie.get_tickvalues(bmt, SymLog(1), 0, 1) == [0, 0.5, 1]
     @test Makie.get_tickvalues(bmt, SymLog(1), 0, 0.2) == [0, 0.1, 0.2]
     @test Makie.get_tickvalues(bmt, SymLog(1), 0, 0.099) ≈ [0, 0.01, 0.02, 0.05]
     @test Makie.get_tickvalues(bmt, SymLog(1), 0.09, 0.11) ≈ [0.1]
     @test Makie.get_tickvalues(bmt, SymLog(1), 9, 11) ≈ [10]
     @test Makie.get_tickvalues(bmt, SymLog(1), 9, 9.5) == []
+    @test Makie.get_ticks(bmt, identity, Makie.Automatic(), 0.25, 100) == (
+        [0.5, 1, 2, 5, 10, 20, 50, 100],
+        ["0.5", "1", "2", "5", "10", "20", "50", "100"]
+    )
+    @test Makie.get_ticks(bmt, SymLog(1), Makie.Automatic(), -10, 100) == (
+        [-10, -5, -2, -1, -0.5, 0, 0.5, 1, 2, 5, 10, 20, 50, 100],
+        ["−10", "−5", "−2", "−1", "−0.5", "0", "0.5", "1", "2", "5", "10", "20", "50", "100"]
+    )
 
     @test Makie.get_minor_tickvalues(bmt, identity, nothing, 3, 100) == Makie.get_tickvalues(bmt, identity, 3, 100)
     @test Makie.get_minor_tickvalues(bmt, SymLog(1), nothing, -3, 100) == [-2.0, -1.0, -0.5, -0.2, -0.1, 0.0, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0]
@@ -111,6 +119,7 @@ end
     lines(sin)
     lines(sin; color=:black)
     scatter!(sin)
+    scatter!(current_axis(), sin)
     scatter!(Observable(sin))
     scatter!(Observable(sin); markersize=2)
     band(x -> sin(x)..2sin(x); alpha=0.5)
@@ -134,6 +143,15 @@ end
 	linesglow(0..6, x->sin(x^2), glowwidth=15)
 	linesglow(0..6, x->-sin(x^2), glowwidth=70, glowcolor=(:green, 0.4))
 	linesglow(0..6, x->-sin(x^2), glowwidth=70, glowalpha=0.5)
+
+    linesglow(FPlot(1:5, identity, identity), glowwidth=15)
+end
+
+@testitem "bandstroke" begin
+    bandstroke([1,2,3], [1..2, 3..4, 5..6])
+    bandstroke([1,2,3], [1..2, 3..4, 5..6], strokecolor=:red, strokewidth=2)
+    bandstroke(FPlot(1:5, identity, x->x..x+1), strokecolor=:red, strokewidth=2)
+    bandstroke(FPlot(1:5, identity, x->x..x+1, strokecolor=Ref(:red)), strokewidth=2)
 end
 
 @testitem "markers" begin
@@ -154,6 +172,69 @@ end
     attrs = Attributes(attrs)
     @test NamedTuple(attrs).b[] == 123
     @test_broken (to_x_attrs(attrs); true)
+end
+
+@testitem "multiplot" begin
+    import CairoMakie
+
+    res = multiplot((Scatter, Lines), 1:10, 1:10, axis=(xlabel="x",))
+    @test length(res) == 2
+    @test res[1] isa Makie.FigureAxisPlot
+    @test res[2] isa Plot
+    @test res[1].axis.xlabel[] == "x"
+    res = multiplot!((Scatter, Lines), 1:10, 1:10)
+    @test length(res) == 2
+    @test res[1] isa Plot
+    @test res[2] isa Plot
+    multiplot!(current_axis(), (Scatter, Lines), 1:10, 1:10)
+
+    multiplot((Scatter, Lines), 1:10, 1:10, color=:red)
+    (ax, _), _ = multiplot(current_figure()[1,2], (Scatter, Lines), 1:10, 1:10, markersize=5, axis=(;xlabel="x"))
+    @test ax.xlabel[] == "x"
+    multiplot((Scatter, Lines), 1:10, 1:10, markersize=5, linewidth=2)
+    plts = multiplot!((Scatter, Lines), 1:10, 1:10, markersize=5, linewidth=2, color=:red)
+    @test plts[1].markersize[] == 5
+    @test plts[1].color[] == :red
+    @test plts[2].linewidth[] == 2
+    @test plts[2].color[] == :red
+
+    multiplot((scatter, lines), 1:10, 1:10)
+    multiplot!((scatter, lines), 1:10, 1:10)
+    plts = multiplot!((scatter, lines), 1:10, 1:10, color=:red, markersize=5, linewidth=2)
+    @test plts[1].markersize[] == 5
+    @test plts[1].color[] == :red
+    @test plts[2].linewidth[] == 2
+    @test plts[2].color[] == :red
+
+    multiplot((Scatter, Lines), current_figure()[1:2,3], 1:10, 1:10)
+    Makie.colorbuffer(current_figure(); backend=CairoMakie)
+
+    plts = multiplot!(
+        (Scatter => (;color=:red), Lines => (;color=:blue), Scatter),
+        1:10, 1:10, color=:black, markersize=5, linewidth=2)
+    @test length(plts) == 3
+    @test plts[1].markersize[] == plts[3].markersize[] == 5
+    @test plts[1].color[] == :red
+    @test plts[2].linewidth[] == 2
+    @test plts[2].color[] == :blue
+    @test plts[3].color[] == :black
+
+    Makie.colorbuffer(current_figure(); backend=CairoMakie)
+end
+
+@testitem "arrowline" begin
+    using MakieExtra: split_arrowstyle
+
+    @test split_arrowstyle("<-|>") == (lmk = "<", rmk = "|>", linek = "-")
+    @test split_arrowstyle("<|-->") == (lmk = "<|", rmk = ">", linek = "--")
+    @test split_arrowstyle("->") == (lmk = "", rmk = ">", linek = "-")
+    @test split_arrowstyle("-|>") == (lmk = "", rmk = "|>", linek = "-")
+    @test split_arrowstyle("<->") == (lmk = "<", rmk = ">", linek = "-")
+    @test split_arrowstyle("<-") == (lmk = "<", rmk = "", linek = "-")
+
+    arrowlines([(0, 0), (1, 0.5)])
+    arrowlines!([(0, 0), (1, 0.5)], markersize=50)
+    arrowlines!([(0, 0), (1, 0.5)], arrowstyle="<-|>")
 end
 
 @testitem "@define_plotfunc" begin

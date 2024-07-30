@@ -1,15 +1,17 @@
 module MakieExtra
 
 using Reexport
-using Accessors
+using AccessorsExtra
 using InverseFunctions
 using PyFormattedStrings
 using Makie: left, right, bottom, top, bottomleft, topleft, bottomright, topright
+using Makie.MakieCore: documented_attributes
 using Makie.IntervalSets
 using Makie.IntervalSets: width
 using Makie.Unitful
 using DataPipes
 import DataManipulation: shift_range
+using StructHelpers
 
 @reexport using Makie
 export Makie
@@ -19,7 +21,9 @@ export
 	BaseMulTicks, EngTicks,
 	zoom_lines!,
 	marker_lw,
-	to_x_attrs, to_y_attrs, to_xy_attrs
+	to_x_attrs, to_y_attrs, to_xy_attrs,
+	multiplot, multiplot!,
+	FPlot
 
 include("lift.jl")
 include("scales.jl")
@@ -31,11 +35,27 @@ include("axisfunction.jl")
 include("contourf.jl")
 include("markers.jl")
 include("glow.jl")
+include("bandstroke.jl")
+include("fplot.jl")
+include("arrowline.jl")
+include("multiplot.jl")
 
 
 to_x_attrs(attrs) = @modify(k -> Symbol(:x, k), keys(attrs)[∗])
 to_y_attrs(attrs) = @modify(k -> Symbol(:y, k), keys(attrs)[∗])
 to_xy_attrs(attrs) = merge(to_x_attrs(attrs), to_y_attrs(attrs))
+
+
+function __init__()
+	if ccall(:jl_generating_output, Cint, ()) != 1
+		# to support SpecApi
+		Core.eval(Makie, Expr(:global, :BandStroke))
+		Makie.BandStroke = BandStroke
+
+		Core.eval(Makie, Expr(:global, :LinesGlow))
+		Makie.LinesGlow = LinesGlow
+	end
+end
 
 # XXX: should upstream these!
 
@@ -69,6 +89,6 @@ shift_range(p::T, (r1, r2)::Pair{<:Rect2,<:Rect2}) where {T<:Point2} = T(
 # XXX: hack, ignore kwargs that Makie erroneously propagates
 # this is very low-specificity method that should only trigger when no kwargs-accepting methods exist
 # this method is relied upon in, for example, VLBIPlots.jl
-Makie.convert_arguments(args...; kwargs...) = convert_arguments(args...)
+Makie.convert_arguments(args...; kwargs...) = isempty(kwargs) ? throw(MethodError(convert_arguments, args)) : convert_arguments(args...)
 
 end

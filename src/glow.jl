@@ -2,8 +2,9 @@
     glowwidth = 0
     glowalpha = 1
     glowcolor = nothing
-    Makie.MakieCore.documented_attributes(Makie.Lines)...
+    documented_attributes(Makie.Lines)...
 end
+
 
 function Makie.plot!(p::LinesGlow)
     att = Makie.shared_attributes(p, Lines)
@@ -24,7 +25,7 @@ end
 
 
 @recipe TextGlow (position,) begin
-    Makie.MakieCore.documented_attributes(Makie.Text)...
+    documented_attributes(Makie.Text)...
 end
 
 function Makie.plot!(p::TextGlow)
