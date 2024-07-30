@@ -1,6 +1,7 @@
 @kwdef struct BaseMulTicks
     subs = [1, 2, 5]
     base = 10.
+    symlog_mul_min = 0.5
 end
 BaseMulTicks(subs; kwargs...) = BaseMulTicks(; subs, kwargs...)
 
@@ -15,12 +16,24 @@ function Makie.get_tickvalues(t::BaseMulTicks, vmin, vmax)
     ])
 end
 
-Makie.get_tickvalues(t::BaseMulTicks, scale::SymLogLike, vmin, vmax) = filter!(∈((vmin..vmax) ∩ (scale.vmin..scale.vmax)), [
-    Makie.get_tickvalues(t, max(vmin, scale.linthresh/3), vmax);
-    Makie.get_tickvalues(t, vmin, min(vmax, -scale.linthresh/3));
-    0
-])
+function Makie.get_tickvalues(t::BaseMulTicks, scale::SymLogLike, vmin, vmax; go_to_previous_base_power=false)
+    mintick = @p let
+        min(scale.linthresh * t.symlog_mul_min, max(abs(vmax), abs(vmin)))
+        go_to_previous_base_power ? @modify(l -> floor(l - 0.01) - 0.01, log(t.base, $__)) : __
+        max(vmin, __)
+    end
+    ticks = filter!(∈((vmin..vmax) ∩ (scale.vmin..scale.vmax)), [
+        reverse(Makie.get_tickvalues(t, vmin, -mintick));
+        0.;
+        Makie.get_tickvalues(t, mintick, vmax);
+    ])
+    length(ticks) ≤ 1 && !go_to_previous_base_power ?
+        Makie.get_tickvalues(t, scale, vmin, vmax; go_to_previous_base_power=true) :
+        ticks
+end
 
+Makie.get_minor_tickvalues(t::BaseMulTicks, scale, tickvals, vmin, vmax) = Makie.get_tickvalues(t, scale, vmin, vmax)
+Makie.get_minor_tickvalues(t::BaseMulTicks, scale::SymLogLike, tickvals, vmin, vmax) = Makie.get_tickvalues(t, scale, vmin, vmax; go_to_previous_base_power=true)
 
 function Makie.get_ticks(ticks, scale::SymLogLike, formatter, vmin, vmax)
     tickvalues = Makie.get_tickvalues(_symlog_ticks(ticks), scale, vmin, vmax)
@@ -64,6 +77,8 @@ Makie.get_ticklabels(t::EngTicks, values) = map(values) do v
             15 => "P",
             18 => "E",
         )[pow3]
+    else
+        error("Unknown EngTicks kind: $(t.kind)")
     end
     rich(f"{v / 10.0^pow3:.{t.digits}f}", suffix)
 end

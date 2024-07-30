@@ -14,8 +14,14 @@ import DataManipulation: shift_range
 @reexport using Makie
 export Makie
 
-export SymLog, AsinhScale, BaseMulTicks, EngTicks, zoom_lines!
+export 
+	SymLog, AsinhScale,
+	BaseMulTicks, EngTicks,
+	zoom_lines!,
+	marker_lw,
+	to_x_attrs, to_y_attrs, to_xy_attrs
 
+include("lift.jl")
 include("scales.jl")
 include("ticks.jl")
 include("scalebar.jl")
@@ -23,24 +29,30 @@ include("zoom_lines.jl")
 include("helpers.jl")
 include("axisfunction.jl")
 include("contourf.jl")
+include("markers.jl")
+include("glow.jl")
 
+
+to_x_attrs(attrs) = @modify(k -> Symbol(:x, k), keys(attrs)[∗])
+to_y_attrs(attrs) = @modify(k -> Symbol(:y, k), keys(attrs)[∗])
+to_xy_attrs(attrs) = merge(to_x_attrs(attrs), to_y_attrs(attrs))
 
 # XXX: should upstream these!
 
 function Accessors.set(attrs::Attributes, il::IndexLens, val)
-	res = deepcopy(attrs)
+	res = copy(attrs)
 	res[only(il.indices)] = val
 	return res
 end
 
 function Accessors.insert(attrs::Attributes, il::IndexLens, val)
-	res = deepcopy(attrs)
+	res = copy(attrs)
 	res[only(il.indices)] = val
 	return res
 end
 
 function Accessors.delete(attrs::Attributes, il::IndexLens)
-	res = deepcopy(attrs)
+	res = copy(attrs)
 	delete!(res, only(il.indices))
 	return res
 end
@@ -52,5 +64,11 @@ shift_range(p::T, (r1, r2)::Pair{<:Rect2,<:Rect2}) where {T<:Point2} = T(
 	shift_range(p[1], xint(r1) => xint(r2)),
 	shift_range(p[2], yint(r1) => yint(r2)),
 )
+
+
+# XXX: hack, ignore kwargs that Makie erroneously propagates
+# this is very low-specificity method that should only trigger when no kwargs-accepting methods exist
+# this method is relied upon in, for example, VLBIPlots.jl
+Makie.convert_arguments(args...; kwargs...) = convert_arguments(args...)
 
 end
