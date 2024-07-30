@@ -41,8 +41,8 @@ end
     
 	heatmap(X, axis=(aspect=DataAspect(),), alpha=0.1)
 	scalebar!(0.15u"m")
-	scalebar!(0.15u"m", position=Point2(0.8, 0.1), color=:black)
-	scalebar!((0.15u"m", x -> "a $x b"), position=Point2(0.8, 0.1), color=:black)
+	scalebar!(0.15u"m", position=(0.8, 0.1), color=:black)
+	scalebar!((0.15u"m", x -> "a $x b"), position=(0.8, 0.1), color=:black)
 	scalebar!((0.15, x -> "a $x b"), color=:black)
     
 	heatmap(0..1e-5, 0..1e-5, X, axis=(aspect=DataAspect(),), alpha=0.1)
@@ -66,6 +66,16 @@ end
     scatter!(sin)
     scatter!(Observable(sin))
     band(x -> sin(x)..2sin(x))
+end
+
+@testitem "contourf fast" begin
+    using AxisKeysExtra
+
+    contourf_fast(rand(100, 100))
+    contourf_fast(rand(100, 100), levels=[0, 0.3, 1])
+    @test current_axis().xlabel[] == ""
+    contourf_fast(KeyedArray(rand(100, 100), a=range(0, 1, length=100), b=range(-1, 2, length=100)))
+    @test current_axis().xlabel[] == "a"
 end
 
 @testitem "@define_plotfunc" begin
